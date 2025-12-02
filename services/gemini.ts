@@ -1,14 +1,19 @@
 'use client'
 
-import { GoogleGenerativeAI, FileMetadataWithRenaming } from '@google/generative-ai'
-import type { Corpus, CorpusDocument, Question } from '@/types'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { buildGenerationPrompt } from '@/lib/prompts'
+import type { Corpus, CorpusDocument, Question, GenerationParams } from '@/types'
 
 let genAI: GoogleGenerativeAI | null = null
 
 const initializeGemini = () => {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
+  // Try to get API key from localStorage first (user configured), then from env
+  const apiKey = typeof window !== 'undefined'
+    ? localStorage.getItem('gemini_api_key')
+    : process.env.NEXT_PUBLIC_GEMINI_API_KEY
+
   if (!apiKey) {
-    throw new Error('NEXT_PUBLIC_GEMINI_API_KEY not configured')
+    throw new Error('NEXT_PUBLIC_GEMINI_API_KEY not configured. Configure it in Settings.')
   }
   if (!genAI) {
     genAI = new GoogleGenerativeAI(apiKey)
@@ -76,24 +81,15 @@ export async function getOrCreateCorpus(
 /**
  * Generate questions using Gemini
  */
-export async function generateQuestionsWithGemini(params: {
-  subject: string
-  grade: number
-  unit: string
-  topic?: string
-  itemTypes: string[]
-  difficulty: { easy: number; medium: number; hard: number }
-  totalCount: number
-  corpusName?: string
-}): Promise<Question[]> {
+export async function generateQuestionsWithGemini(params: GenerationParams): Promise<Question[]> {
   try {
     const client = initializeGemini()
     const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
-    // Build the prompt
+    // Build the prompt using utility function
     const prompt = buildGenerationPrompt(params)
 
-    console.log('Sending prompt to Gemini...')
+    console.log('Sending prompt to Gemini for question generation...')
 
     const result = await model.generateContent(prompt)
     const text = result.response.text()
@@ -101,140 +97,12 @@ export async function generateQuestionsWithGemini(params: {
     // Parse JSON from response
     const questions = parseQuestionsJson(text)
 
+    console.log(`Successfully generated ${questions.length} questions`)
     return questions
   } catch (error) {
     console.error('Error generating questions:', error)
     throw error
   }
-}
-
-/**
- * Build generation prompt based on parameters
- */
-function buildGenerationPrompt(params: {
-  subject: string
-  grade: number
-  unit: string
-  topic?: string
-  itemTypes: string[]
-  difficulty: { easy: number; medium: number; hard: number }
-  totalCount: number
-  corpusName?: string
-}): string {
-  const { subject, grade, unit, topic, itemTypes, difficulty, totalCount } = params
-
-  const easyCount = Math.round(totalCount * (difficulty.easy / 100))
-  const mediumCount = Math.round(totalCount * (difficulty.medium / 100))
-  const hardCount = totalCount - easyCount - mediumCount
-
-  const itemTypesStr = itemTypes.map((t) => `- ${t}`).join('\n')
-
-  return `Tu ești un profesor experimentat care creează întrebări pentru platforma educațională QuizFun.app.
-
-CONTEXT:
-- Disciplina: ${subject}
-- Clasa: ${grade}
-- Unitatea de învățare: ${unit}
-${topic ? `- Tema specifică: ${topic}` : ''}
-
-CERINȚĂ:
-Generează ${totalCount} întrebări distribuite astfel:
-- ${easyCount} întrebări EASY (recunoaștere, identificare directă)
-- ${mediumCount} întrebări MEDIUM (înțelegere, aplicare)
-- ${hardCount} întrebări HARD (analiză, evaluare)
-
-TIPURI DE ITEMI DE GENERAT:
-${itemTypesStr}
-
-REGULI IMPORTANTE:
-1. Fiecare întrebare trebuie să aibă toate câmpurile obligatorii: type, question, competencyCode, bloomLevel, difficulty, data, explanation
-2. Pentru multiple_choice_single: exact 4 răspunsuri, exact 1 corect, răspunsul corect plasat aleatoriu
-3. Pentru true_false: adevărat sau fals, afirmație clară
-4. Pentru toate tipurile: distractorii sunt plauzibili dar clar greșiți
-5. Explicațiile sunt educative și ajută înțelegerea
-6. Verifică de 3 ori corectitudinea faptică
-
-COMPETENȚE: Folosește coduri ca 1.1, 1.2, 2.1, 2.2, 3.1, etc.
-
-FORMAT OUTPUT OBLIGATORIU:
-Returnează DOAR un JSON valid (fără text adițional):
-{
-  "questions": [
-    {
-      "type": "multiple_choice_single|true_false|matching|fill_in_blanks|ordering|categorization",
-      "question": "Textul întrebării",
-      "competencyCode": "1.1",
-      "bloomLevel": "remember|understand|apply|analyze|evaluate|create",
-      "difficulty": "easy|medium|hard",
-      "data": { ... },
-      "explanation": "Explicația detaliată",
-      "requiresAI": false,
-      "timeAllocation": "standard",
-      "requiresKeyboard": false,
-      "hints": []
-    }
-  ]
-}
-
-EXEMPLE PENTRU STRUCTURA DATA:
-
-Multiple Choice Single:
-"data": {
-  "answers": [
-    { "text": "Răspuns A", "correct": true },
-    { "text": "Răspuns B", "correct": false },
-    { "text": "Răspuns C", "correct": false },
-    { "text": "Răspuns D", "correct": false }
-  ],
-  "shuffleAnswers": true
-}
-
-True/False:
-"data": {
-  "correctAnswer": true
-}
-
-Matching:
-"data": {
-  "pairs": [
-    { "id": "p1", "left": "Element 1", "right": "Potrivire 1" },
-    { "id": "p2", "left": "Element 2", "right": "Potrivire 2" }
-  ],
-  "shuffleRight": true
-}
-
-Fill in Blanks:
-"data": {
-  "template": "Textul cu {{blank1}} și {{blank2}}",
-  "blanks": [
-    { "id": "blank1", "options": ["Opțiune A", "Opțiune B", "Opțiune C", "Opțiune D"], "correctIndex": 0 },
-    { "id": "blank2", "options": ["Opțiune X", "Opțiune Y", "Opțiune Z"], "correctIndex": 1 }
-  ]
-}
-
-Ordering:
-"data": {
-  "items": [
-    { "id": "e1", "text": "Evenimentul 1", "correctPosition": 1 },
-    { "id": "e2", "text": "Evenimentul 2", "correctPosition": 2 }
-  ],
-  "shuffleOnDisplay": true
-}
-
-Categorization:
-"data": {
-  "categories": [
-    { "id": "cat1", "name": "Cauze" },
-    { "id": "cat2", "name": "Consecințe" }
-  ],
-  "items": [
-    { "id": "i1", "text": "Element 1", "correctCategory": "cat1" },
-    { "id": "i2", "text": "Element 2", "correctCategory": "cat2" }
-  ],
-  "shuffleItems": true
-}
-
-IMPORTANT: Returnează DOAR JSON valid, nimic altceva!`
 }
 
 /**
