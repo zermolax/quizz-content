@@ -499,8 +499,7 @@ export default function GeneratePage() {
             {generation.status === 'idle' || generation.status === 'error' ? (
               <button
                 onClick={handleGenerate}
-                disabled={generation.status === 'generating' || generation.status === 'validating'}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors text-lg"
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors text-lg"
               >
                 <Sparkles className="w-5 h-5" />
                 🚀 Generează Întrebări

@@ -67,7 +67,7 @@ function DataPreview({ question }: { question: Question }) {
           </div>
           {blanks.map((blank: BlankOption, i: number) => (
             <div key={i} className="p-2 bg-yellow-50 rounded">
-              <span className="text-yellow-700 font-medium">{{blank{i + 1}}}: </span>
+              <span className="text-yellow-700 font-medium">{blank.id}: </span>
               <span className="text-yellow-600">{blank.options[blank.correctIndex]} ✓</span>
               <span className="text-yellow-500 ml-2 text-xs">({blank.options.join(', ')})</span>
             </div>
@@ -131,16 +131,6 @@ export default function ReviewPage() {
   const [filterType, setFilterType] = useState<string>('')
   const [expandedQuestions, setExpandedQuestions] = useState<ExpandedQuestions>({})
 
-  useEffect(() => {
-    loadSessions()
-  }, [])
-
-  useEffect(() => {
-    if (selectedSession) {
-      validateAllQuestions(selectedSession.questions)
-    }
-  }, [selectedSession])
-
   const loadSessions = () => {
     const stored = getSessions()
     setSessions(stored)
@@ -156,6 +146,17 @@ export default function ReviewPage() {
     })
     setValidationResults(results)
   }
+
+  useEffect(() => {
+    loadSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (selectedSession) {
+      validateAllQuestions(selectedSession.questions)
+    }
+  }, [selectedSession])
 
   const handleEditQuestion = (index: number, question: Question) => {
     setEditingIndex(index)

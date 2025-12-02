@@ -28,10 +28,6 @@ export default function ImportPage() {
   })
   const [showRawJson, setShowRawJson] = useState(false)
 
-  useEffect(() => {
-    loadSessions()
-  }, [])
-
   const loadSessions = () => {
     const stored = getSessions()
     setSessions(stored)
@@ -40,6 +36,11 @@ export default function ImportPage() {
       setThemeName(`${stored[stored.length - 1].params.unit}`)
     }
   }
+
+  useEffect(() => {
+    loadSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleImport = async () => {
     if (!selectedSession) {
@@ -242,7 +243,7 @@ export default function ImportPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Aceasta va crea o colecție "themes" în Firestore dacă nu există
+                  Aceasta va crea o colecție &quot;themes&quot; în Firestore dacă nu există
                 </p>
               </div>
 
@@ -337,7 +338,7 @@ export default function ImportPage() {
               <>
                 <button
                   onClick={handleImport}
-                  disabled={!themeName.trim() || importState.status === 'importing'}
+                  disabled={!themeName.trim()}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
                 >
                   <Upload className="w-5 h-5" />
@@ -367,8 +368,8 @@ export default function ImportPage() {
             <div>
               <p className="text-sm font-semibold text-blue-900">Implementare pe MVP</p>
               <p className="text-sm text-blue-700 mt-1">
-                Pe MVP, import-ul este simulat. În producție, va crea o colecție "themes" în Firestore și va importa
-                întrebările în colecția "questions" cu referințe corecte.
+                Pe MVP, import-ul este simulat. În producție, va crea o colecție &quot;themes&quot; în Firestore și va importa
+                întrebările în colecția &quot;questions&quot; cu referințe corecte.
               </p>
             </div>
           </div>
