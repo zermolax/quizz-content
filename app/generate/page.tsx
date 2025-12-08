@@ -5,10 +5,10 @@ import { Header } from '@/components/layout/Header'
 import { useState, useEffect } from 'react'
 import { Sparkles, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import { generateQuestionsWithGemini } from '@/services/gemini'
-import { saveQuestions, getCorpora } from '@/services/storage'
+import { saveQuestions } from '@/services/storage'
 import { validateQuestions, getValidationSummary } from '@/lib/validation'
 import { SUBJECTS, GRADES, QUESTION_TYPES, DEFAULT_DIFFICULTY } from '@/lib/constants'
-import type { Question, GenerationParams, QuestionType, Corpus } from '@/types'
+import type { Question, GenerationParams, QuestionType, Corpus, FileSearchCorpus } from '@/types'
 
 interface GenerationState {
   status: 'idle' | 'generating' | 'validating' | 'success' | 'error'
@@ -43,16 +43,41 @@ export default function GeneratePage() {
     progress: 0,
   })
 
-  const [corpora, setCorpora] = useState<Corpus[]>([])
+  const [fileSearchCorpora, setFileSearchCorpora] = useState<FileSearchCorpus[]>([])
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([])
+  const [selectedFileSearchCorpus, setSelectedFileSearchCorpus] = useState<FileSearchCorpus | null>(null)
 
   useEffect(() => {
-    loadCorpora()
+    loadFileSearchCorpora()
   }, [])
 
-  const loadCorpora = () => {
-    const stored = getCorpora()
-    setCorpora(stored)
+  const loadFileSearchCorpora = () => {
+    try {
+      const stored = localStorage.getItem('file_search_corpora')
+      if (stored) {
+        const parsedCorpora = JSON.parse(stored) as Array<{
+          id: string
+          googleFileSearchStoreId: string
+          displayName: string
+          createdAt: string
+        }>
+        const converted: FileSearchCorpus[] = parsedCorpora.map((c) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+          lastModified: new Date(c.createdAt),
+          documentCount: 0,
+          estimatedStorageBytes: 0,
+          isActive: true,
+          createdBy: 'user',
+        }))
+        setFileSearchCorpora(converted)
+        if (converted.length > 0) {
+          setSelectedFileSearchCorpus(converted[0])
+        }
+      }
+    } catch (err) {
+      console.error('Error loading File Search corpora:', err)
+    }
   }
 
   const handleToggleItemType = (type: QuestionType) => {
@@ -134,7 +159,7 @@ export default function GeneratePage() {
         progress: 30,
       })
 
-      const questions = await generateQuestionsWithGemini(params)
+      const questions = await generateQuestionsWithGemini(params, selectedFileSearchCorpus || undefined)
 
       setGeneration({
         status: 'validating',
@@ -195,7 +220,7 @@ export default function GeneratePage() {
                 <p className="text-sm font-semibold text-blue-900">Cum funcționează</p>
                 <p className="text-sm text-blue-700 mt-1">
                   1. Completează parametrii de generare 2. Alege tipurile de itemi 3. Setează distribuția dificultății
-                  4. Click "Generează" și așteaptă rezultatul
+                  4. Click &quot;Generează&quot; și așteaptă rezultatul
                 </p>
               </div>
             </div>
@@ -275,27 +300,6 @@ export default function GeneratePage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-
-                {/* Corpus Selection */}
-                {corpora.length > 0 && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Corpus (opțional - pentru RAG cu documente)
-                    </label>
-                    <select
-                      value={selectedCorpus}
-                      onChange={(e) => setSelectedCorpus(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Nu folosi corpus (doar cunoștințe AI) --</option>
-                      {corpora.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.displayName} ({c.documents?.length || 0} documente)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -405,7 +409,36 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            {/* Step 4: Advanced Options */}
+            {/* Step 4: File Search Corpus Selection */}
+            {fileSearchCorpora.length > 0 && (
+              <div className="mb-8 pb-8 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">📚 Corpus File Search (Opțional)</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Selectează un corpus:</label>
+                  <select
+                    value={selectedFileSearchCorpus?.id || ''}
+                    onChange={(e) => {
+                      const corpus = fileSearchCorpora.find((c) => c.id === e.target.value)
+                      setSelectedFileSearchCorpus(corpus || null)
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Nu folosi corpus --</option>
+                    {fileSearchCorpora.map((corpus) => (
+                      <option key={corpus.id} value={corpus.id}>
+                        {corpus.displayName} ({corpus.documentCount || 0} documente)
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-600 mt-2">
+                    Dacă selectezi un corpus, Gemini va folosi documentele din acesta pentru a genera întrebări.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Advanced Options */}
             <div className="mb-8 pb-8 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-900 mb-4">⚙️ Opțiuni Avansate</h3>
 

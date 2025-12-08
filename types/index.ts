@@ -330,3 +330,29 @@ export interface FirebaseSubject {
   availableGrades: number[]
   supportsSubjectiveItems: boolean
 }
+
+/**
+ * File Search Corpus (persistent document collection)
+ */
+export interface FileSearchCorpus {
+  id: string
+  googleFileSearchStoreId: string
+  displayName: string
+  description?: string
+  createdAt: Date
+  createdBy?: string
+  documentCount: number
+  estimatedStorageBytes: number
+  lastModified: Date
+  isActive: boolean
+}
+
+/**
+ * File Search Document (file in a corpus)
+ */
+export interface FileSearchDocument {
+  id: string
+  name: string
+  mimeType?: string
+  uploadedAt: Date
+}
