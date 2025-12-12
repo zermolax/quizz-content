@@ -9,30 +9,21 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
-    const projectId = process.env.NEXT_PUBLIC_GOOGLE_CLOUD_PROJECT_ID
 
     console.log('[create-corpus] API Key available:', !!apiKey)
-    console.log('[create-corpus] Project ID available:', !!projectId)
     console.log('[create-corpus] Display Name:', displayName)
 
-    if (!apiKey || !projectId) {
-      console.error('[create-corpus] Missing configuration:', {
-        apiKey: !!apiKey,
-        projectId: !!projectId,
-      })
+    if (!apiKey) {
+      console.error('[create-corpus] Missing API key')
       return NextResponse.json(
         {
-          error: 'Missing API configuration',
-          details: {
-            apiKey: !!apiKey,
-            projectId: !!projectId,
-          },
+          error: 'Missing API key',
         },
         { status: 500 }
       )
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/projects/${projectId}/fileSearchStores?key=${apiKey}`
+    const url = `https://generativelanguage.googleapis.com/v1beta/fileSearchStores?key=${apiKey}`
     console.log('[create-corpus] Calling Google API:', url.substring(0, 80) + '...')
 
     const response = await fetch(url, {
